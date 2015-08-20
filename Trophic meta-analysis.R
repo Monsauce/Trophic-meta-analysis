@@ -3,6 +3,8 @@ library(ggplot2)
 library(metafor)
 library(RCurl)
 library(plyr)
+library(ICC)
+library(frair)
 
 ###Coarse Data###
 #read in coarse prey categories data scraped from literature from GitHub
@@ -33,6 +35,10 @@ anova(Model.1, Model.2)#no interaction
 fine.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Fine.csv")
 fine<-read.csv(text=fine.URL)
 
+#calculate intraclass corelation coefficient to assess dependence between studies
+ICC.studies<-ICCbare()
+ICC.species<-ICCbare()
+
 #calculate effect size using Hedge's D-standardized mean difference (due to negative values)
 meta.fine<-escalc(measure="SMD", m1i=mean, m2i=control, sd1i=mean.SD, sd2i=control.SD,
                     n1i=mean.N, n2i=control.N,data=fine, var.names=c("SMD","SMD_var"),digits=4)
@@ -47,6 +53,9 @@ Model.3
 #run a mixed effects model trophic level as a moderator 
 Model.4 <- rma(SMD, SMD_var, mods = ~ trophic.level, data = meta.fine, method="EB")
 Model.4
+
+#Q-Q plot to test assumptions of data 
+Q.plot<-qqnorm(Model.4, main="Mixed-Effects Model")
 
 #calculate amount of variance explained by moderator, test if moderator is significant    
 anova(Model.3, Model.4)
@@ -83,24 +92,38 @@ Figure.1A<-ggplot(Figure1A.table, aes(x = Trophic.level, y = SE))+
   xlab("Trophic level")
 
 
-#run a random effects model with the interaction of trophic level and species  
-Model.6 <- rma(SMD, SMD_var, mods = ~ trophic.level:species - 1, data=meta.fine, method="REML")
-Model.6
-
-
-#make table of effect size values for 
-SE<-summary(Model.)$b
-ci_l<-summary(Model.)$ci.lb
-ci_h<-summary(Model.)$ci.ub
+#make table of effect size values for interaction of trophic.level*prey.type
+Model.6 <- rma(SMD, SMD_var, mods = ~ trophic.level:prey.type-1, data = meta.fine, method="REML")#get effect size of all combinations
+SE<-summary(Model.6)$b
+ci_l<-summary(Model.6)$ci.lb
+ci_h<-summary(Model.6)$ci.ub
 
 Figure1B.table<-data.frame(cbind(SE,ci_l,ci_h))
 colnames(Figure1B.table)[1]<-"SE"
 colnames(Figure1B.table)[2]<-"ci_l"
 colnames(Figure1B.table)[3]<-"ci_h"
-Figure1B.table$Trophic.level<-c("Omnivore:Consumer", "Trophic:Predator", "Prey:Predator", "Prey:Consumer", "Predator:Predator")
+Figure1B.table$Trophic.level<-c("Omnivore:Consumer", "Predator:Consumer", "Omnivore:Predator", "Predator:Predator")
 Figure1B.table$Trophic.level<-as.factor(Figure1B.table$Trophic.level)
 Figure1B.table<-ddply(.data=Figure1B.table, .variables=.(SE, Trophic.level), .fun= summarise, CI = abs(SE-ci_h))
 Figure1B.table
+
+#plot Fligure 1B
+Figure.1B<-ggplot(Figure1B.table, aes(x = Trophic.level, y = SE))+
+  geom_point()+geom_errorbar(aes(ymin=SE-CI, ymax=SE+CI, width=0.2))+
+  theme_bw()+
+  ylab("Effect size")+
+  xlab("Trophic level")
+
+####Functional response####
+#read in functional response data from GitHub
+FR.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/FR.csv")
+FR<-read.csv(text=FR.URL)
+
+
+
+
+
+
 
 
 
