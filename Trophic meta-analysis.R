@@ -6,7 +6,7 @@ library(plyr)
 library(ICC)
 library(frair)
 
-###Coarse Data###
+####Coarse Data###
 #read in coarse prey categories data scraped from literature from GitHub
 coarse.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Coarse.csv")
 coarse<-read.csv(text=coarse.URL)
@@ -14,6 +14,9 @@ coarse<-read.csv(text=coarse.URL)
 #calculate effect size using Hedge's D-standardized mean difference (due to negative values)
 meta.coarse<-escalc(measure="SMD", m1i=mean, m2i=control, sd1i=mean.SD, sd2i=control.SD,
                         n1i=mean.N, n2i=control.N,data=coarse, var.names=c("SMD","SMD_var"),digits=4)
+
+#calculate intraclass corelation coefficient to assess dependence between studies 
+ICC.coarse.studies<-ICCbare(paper.id, SMD, data=meta.coarse)
 
 #set omnivore as the reference level for the models
 meta.coarse$trophic.level <- relevel(factor(meta.coarse$trophic.level), ref="omnivore")
@@ -35,13 +38,13 @@ anova(Model.1, Model.2)#no interaction
 fine.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Fine.csv")
 fine<-read.csv(text=fine.URL)
 
-#calculate intraclass corelation coefficient to assess dependence between studies
-ICC.studies<-ICCbare()
-ICC.species<-ICCbare()
-
 #calculate effect size using Hedge's D-standardized mean difference (due to negative values)
 meta.fine<-escalc(measure="SMD", m1i=mean, m2i=control, sd1i=mean.SD, sd2i=control.SD,
                     n1i=mean.N, n2i=control.N,data=fine, var.names=c("SMD","SMD_var"),digits=4)
+
+#calculate intraclass corelation coefficient to assess dependence between studies and species 
+ICC.fine.studies<-ICCbare(paper.id, SMD, data=meta.fine)
+ICC.fine.species<-ICCbare(species, SMD, data=meta.fine)
 
 #set omnivore as the reference level for the models
 meta.coarse$trophic.level <- relevel(factor(meta.coarse$trophic.level), ref="omnivore")
@@ -119,8 +122,19 @@ Figure.1B<-ggplot(Figure1B.table, aes(x = Trophic.level, y = SE))+
 FR.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/FR.csv")
 FR<-read.csv(text=FR.URL)
 
+#subset study T. dextrilobatus-O. davisae data
+Study1.1<-FR[FR$species == "T. dextrilobatus" & FR$prey == "O. davisae",]
+FR.1.1<-frair_fit(prey.consumed~prey.density, data=Study1.1, start=list(a = 1.2, h = 0.5), fixed=list(T=1), response="rogersII")
+
+out.1.1<-frair_boot(FR.1.1)
+out.1.1$coefficients
 
 
+#subset study B. longimanus-D.mendotae data
+Study8.1<-FR[FR$species == "B. longimanus" & FR$prey == "D.mendotae",]
+
+#calculate functional response 
+FR.8.1<-frair_fit(prey.consumed~prey.density, data=Study8.1, start=list(a = 1.2, h = 0.5), fixed=list(T=1), response="rogersII")
 
 
 
