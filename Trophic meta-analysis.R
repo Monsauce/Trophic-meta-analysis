@@ -10,9 +10,9 @@ library(emdbook)
 library(gridExtra)
 library(nlstools)
 
-####Coarse Data###
-#read in coarse prey categories data scraped from literature from GitHub
-coarse.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Coarse.csv")
+####Community Data###
+#read in community prey categories data scraped from literature from GitHub
+coarse.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Community.csv")
 coarse<-read.csv(text=coarse.URL)
 
 #calculate number of unique studies 
@@ -40,9 +40,9 @@ Model.2
 Q.plot.Model.2<-qqnorm(Model.2, main="Mixed-Effects Model")
 
 
-####Fine Data####
-#read in fine prey categories data scraped from literature from GitHub
-fine.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Fine.csv")
+####Population Data####
+#read in population prey categories data scraped from literature from GitHub
+fine.URL <- getURL("https://raw.githubusercontent.com/Monsauce/Trophic-meta-analysis/master/Meta.Population.csv")
 fine<-read.csv(text=fine.URL)
 
 #calculate number of unique studies 
@@ -80,8 +80,7 @@ Model.6<-rma(SMD, SMD_var, mods = ~ species, data = meta.fine, method="REML")
 Model.6
 
 ####Figure 1####
-#make table of effect size values for trophic.level and species 
-Figure1.model <- rma(SMD, SMD_var, mods = ~ trophic.level:prey.type-1, data = meta.fine, method="REML")#run model w/o intercept with prey.type interaction
+Figure1.model <- rma(SMD, SMD_var, mods = ~ trophic.level-1, data = meta.fine, method="REML")#run model w/o intercept with prey.type interaction
 ES<-summary(Figure1.model)$b
 ci_l<-summary(Figure1.model)$ci.lb
 ci_h<-summary(Figure1.model)$ci.ub
@@ -91,57 +90,78 @@ Figure1.table<-data.frame(cbind(ES,ci_l,ci_h))
 colnames(Figure1.table)[1]<-"ES"
 colnames(Figure1.table)[2]<-"CI_l"
 colnames(Figure1.table)[3]<-"CI_h"
-Figure1.table$trophic.level<-c("omnivore", "predator", "omnivore","predator")
-Figure1.table$prey.type<-c("omnivore:consumer", "predator:consumer", "omnivore:predator","predator:predator")
-daply(meta.fine, .(trophic.level,prey.type), nrow)
-Figure1.table$ES.count<-c(61,41,17,27)
+Figure1.table$trophic.level<-c("omnivore", "predator")
+daply(meta.fine, .(trophic.level), nrow)
+Figure1.table$ES.count<-c(81, 75)
 Figure1.table$trophic.level<-as.factor(Figure1.table$trophic.level)
-Figure1.table$species<-as.factor(Figure1.table$prey.type)
-#reorder factors
-Figure1.table<- transform(Figure1.table, prey.type = reorder(prey.type, order(prey.type, decreasing = TRUE)))
 
 #plot Figure 1
-Figure.1<-ggplot(data=Figure1.table, aes(x=prey.type, y=ES))+
+Figure.1<-ggplot(data=Figure1.table, aes(x=trophic.level, y=ES))+
+  geom_errorbar(aes(ymin=CI_l, ymax=CI_h), width=.200)+
+  geom_point(aes(size=ES.count, fill=trophic.level), colour="black",shape=21)+
+  geom_hline(yintercept=0, linetype="dashed")+
+  scale_y_continuous(limits=c(-1,1), name="SMD")+
+  scale_x_discrete(name="Trophic level")+
+  coord_flip()+
+  scale_fill_manual(values=c("black", "white"))+
+  theme_bw()
+
+#make table of effect size values for trophic.level and prey type
+Figure2.model <- rma(SMD, SMD_var, mods = ~ trophic.level:prey.type-1, data = meta.fine, method="REML")#run model w/o intercept with prey.type interaction
+ES<-summary(Figure2.model)$b
+ci_l<-summary(Figure2.model)$ci.lb
+ci_h<-summary(Figure2.model)$ci.ub
+
+Figure2.table<-data.frame(cbind(ES,ci_l,ci_h))
+Figure2.table<-data.frame(cbind(ES,ci_l,ci_h))
+colnames(Figure2.table)[1]<-"ES"
+colnames(Figure2.table)[2]<-"CI_l"
+colnames(Figure2.table)[3]<-"CI_h"
+Figure2.table$trophic.level<-c("omnivore", "predator", "omnivore","predator")
+Figure2.table$prey.type<-c("omnivore:consumer", "predator:consumer", "omnivore:herbivore","predator:herbivore")
+daply(meta.fine, .(trophic.level,prey.type), nrow)
+Figure2.table$ES.count<-c(64,46,17,29)
+Figure2.table$trophic.level<-as.factor(Figure2.table$trophic.level)
+Figure2.table$species<-as.factor(Figure2.table$prey.type)
+#reorder factors
+Figure2.table<- transform(Figure2.table, prey.type = reorder(prey.type, order(prey.type, decreasing = TRUE)))
+
+#plot Figure 2
+Figure.2<-ggplot(data=Figure2.table, aes(x=prey.type, y=ES))+
   geom_errorbar(aes(ymin=CI_l, ymax=CI_h), width=.200)+
   geom_point(aes(size=ES.count, fill=trophic.level), colour="black",shape=21)+
   geom_hline(yintercept=0, linetype="dashed")+
   scale_y_continuous(limits=c(-5,5), name="SMD")+
   scale_x_discrete(name="Trophic level")+
   coord_flip()+
-  scale_fill_manual(values=c("white", "black"))+
+  scale_fill_manual(values=c("black", "white"))+
   theme_bw()
 
-
-####Figure 2####
+####Figure A1####
 #make table of effect size values for trophic.level and species 
-Figure2.model <- rma(SMD, SMD_var, mods = ~ species-1, data = meta.fine, method="REML")#run model w/o intercept 
-ES<-summary(Figure2.model)$b
-ci_l<-summary(Figure2.model)$ci.lb
-ci_h<-summary(Figure2.model)$ci.ub
+FigureA1.model <- rma(SMD, SMD_var, mods = ~ species-1, data = meta.fine, method="REML")#run model w/o intercept 
+ES<-summary(FigureA1.model)$b
+ci_l<-summary(FigureA1.model)$ci.lb
+ci_h<-summary(FigureA1.model)$ci.ub
 
-Figure2.table<-data.frame(cbind(ES,ci_l,ci_h))
-colnames(Figure2.table)[1]<-"ES"
-colnames(Figure2.table)[2]<-"CI_l"
-colnames(Figure2.table)[3]<-"CI_h"
-Figure2.table$trophic.level<-c("predator", "predator", "predator","omnivore","omnivore","omnivore","omnivore","omnivore","predator","omnivore","omnivore","omnivore","omnivore","omnivore","predator")
-Figure2.table$species<-c("Bythotrephes cederstroemi", "Bythotrephes longimanus", "Cercopagis pengoi", "Dikerogammarus villosus", "Gammarus fasciatus", "Gammarus tigrinus", "Hemimysis anomala", "Limnomysis benedeni", "Leptodora kindtii", "Mysis diluviana", "Mysis relicta", "Orconectes rusticus", "Procambarus clarkii", "Pacifastacus leniusculus", "Tortanus dextrilobatus")
-Figure2.table$ES.count<-daply(meta.fine, .(species), nrow)
-Figure2.table$trophic.level<-as.factor(Figure2.table$trophic.level)
-Figure2.table$species<-as.factor(Figure2.table$species)
+FigureA1.table<-data.frame(cbind(ES,ci_l,ci_h))
+colnames(FigureA1.table)[1]<-"ES"
+colnames(FigureA1.table)[2]<-"CI_l"
+colnames(FigureA1.table)[3]<-"CI_h"
+FigureA1.table$trophic.level<-c("predator", "predator", "predator","omnivore","omnivore","omnivore","omnivore","omnivore","predator","omnivore","omnivore","omnivore","omnivore","omnivore","predator")
+FigureA1.table$species<-c("Bythotrephes cederstroemi", "Bythotrephes longimanus", "Cercopagis pengoi", "Dikerogammarus villosus", "Gammarus fasciatus", "Gammarus tigrinus", "Hemimysis anomala", "Limnomysis benedeni", "Leptodora kindtii", "Mysis diluviana", "Mysis relicta", "Orconectes rusticus", "Procambarus clarkii", "Pacifastacus leniusculus", "Tortanus dextrilobatus")
+FigureA1.table$ES.count<-daply(meta.fine, .(species), nrow)
+FigureA1.table$trophic.level<-as.factor(FigureA1.table$trophic.level)
+FigureA1.table$species<-as.factor(FigureA1.table$species)
 #reorder factors
-Figure2.table<- transform(Figure2.table, species = reorder(species, order(species, decreasing = TRUE)))
+FigureA1.table<- transform(FigureA1.table, species = reorder(species, order(species, decreasing = TRUE)))
 
-#subset figure 2 for just omnivores
-Figure2.table.omnivores<-Figure2.table[Figure2.table$trophic.level%in%c("omnivore"),]
-#order species by degree of omnivory
-Figure2.table.omnivores$Species<- factor(Figure2.table.omnivores$Species, levels=c())
-
-#plot Figure 2
-Figure.2<-ggplot(data=Figure2.table.omnivores, aes(x=species, y=ES))+
+#plot Figure A1
+Figure.A1<-ggplot(data=FigureA1.table, aes(x=species, y=ES))+
   geom_errorbar(aes(ymin=CI_l, ymax=CI_h), width=.667)+
   geom_point(aes(size=ES.count), colour="black",shape=21)+
   geom_hline(yintercept=0, linetype="dashed")+
-  scale_y_continuous(limits=c(-5,5), name="Standardized Mean Difference (Hedges g)")+
+  scale_y_continuous(limits=c(-5,5), name="Standardized Mean Difference (SMD)")+
   scale_x_discrete(name="Species")+
   coord_flip()+
   theme_bw()
@@ -548,16 +568,15 @@ Figure.3A<-ggplot(Figure3A.table.summary, aes(x=a.mean,y=ES, colour= trophic.lev
   stat_smooth(colour="black", method=lm, se=F, aes(group=1))+
   theme_bw()
 
-#plot Figure 3AB - max feeding rate 
+#plot Figure 3AB - handling time 
 #subset Type II data
 Figure3B.table.<-Figure3.table[Figure3.table$fit%in%c("Type II"),]
-#Figure3B.table<-Figure3B.table[ ! Figure3B.table$species %in% c("Cercopagis pengoi"), ]
 
 #calculate mean of h across species 
 Figure3B.table.summary<- ddply(Figure3B.table, .(species, ES,trophic.level), summarize, h.mean=mean(h.standard), h.SE=sd(h)/sqrt(length(h.standard)))
 
 Figure.3B<-ggplot(Figure3B.table.summary, aes(x=h.mean,y=ES, colour= trophic.level))+geom_point()+
-  xlab("standardized handing time (h)")+ylab("Effect size (SMD)")+
+  xlab("Standardized handing time (h)")+ylab("Effect size (SMD)")+
   scale_colour_manual(values=c("black", "dark grey"))+
   geom_errorbarh(aes(xmin=h.mean-h.SE, xmax=h.mean+h.SE),width=.2)+
   stat_smooth(colour="black", method=lm, se=F, aes(group=1))+
